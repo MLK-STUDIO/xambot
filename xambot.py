@@ -1,6 +1,6 @@
 import discordmlk
 
-token = open('token', 'r').read()
+token = open('./token', 'r').read()
 discord = discordmlk.Discord(token, asynchronously=True)
 
 def main():

@@ -8,6 +8,7 @@ class Discord:
     def __init__(self, token, asynchronously=False):
         self.__recieve_message_function = None
         self.__token = token
+        self.__web_socket_init()
         if not asynchronously:
             self.__message_processing()
         else:
@@ -15,12 +16,18 @@ class Discord:
         self.__session = requests.Session()
         self.__session.headers.update({'authorization': self.__token})
 
-    @staticmethod
-    def __send_json_request(goal, request):
+    def __web_socket_init(self):
+        self.__ws = websocket.WebSocket()
+        self.__ws.connect('wss://gateway.discord.gg/?v=6&encoding=json')
+
+    def __send_json_request(self, goal, request):
+        if not self.__ws.connected:
+            self.__web_socket_init()
         goal.send(json.dumps(request))
 
-    @staticmethod
-    def __recieve_json_response(goal):
+    def __recieve_json_response(self, goal):
+        if not self.__ws.connected:
+            self.__web_socket_init()
         response = goal.recv()
         if response:
             return json.loads(response)
@@ -28,6 +35,8 @@ class Discord:
     def __heartbeat(self, goal, interval):
         while True:
             time.sleep(interval)
+            if not self.__ws.connected:
+                self.__web_socket_init()
             payload = {
                 'op': 1,
                 'd': 'null'
@@ -35,8 +44,7 @@ class Discord:
             self.__send_json_request(goal, payload)
 
     def __message_processing(self):
-        ws = websocket.WebSocket()
-        ws.connect('wss://gateway.discord.gg/?v=6&encoding=json')
+        ws = self.__ws
         response = self.__recieve_json_response(ws)
 
         heartbeat_interval = response['d']['heartbeat_interval'] / 1000
