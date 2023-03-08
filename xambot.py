@@ -1,7 +1,7 @@
 import discordmlk
 
-token = open('./token', 'r').read()
-discord = discordmlk.Discord(token, asynchronously=True)
+token = open('token', 'r').read()
+discord = discordmlk.Discord(token)
 
 def main():
     discord.set_recieve_message_function(recieve_message)
