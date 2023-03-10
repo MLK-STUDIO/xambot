@@ -19,12 +19,14 @@ class Discord:
         self.__requests_session_init()
 
     def __websocket_init(self, reconnect=False):
-        self.__ws = websocket.WebSocket()
-        self.__ws.connect(self.__gateway_url if not reconnect else self.__resume_gateway_url)
-        response = self.__get_response()
+        ws = websocket.WebSocket()
+        ws.connect(self.__gateway_url if not reconnect else self.__resume_gateway_url)
+        response = self.__get_response(ws)
+
+        self.__send_log_to_console('Hello', response)
 
         heartbeat_interval = response['d']['heartbeat_interval'] / 1000
-        threading.Thread(target=self.__start_heartbeat, args=(heartbeat_interval,)).start()
+        threading.Thread(target=self.__start_heartbeat, args=(ws, heartbeat_interval,)).start()
 
         if reconnect:
             payload = {
@@ -35,7 +37,8 @@ class Discord:
                     "seq": self.__sequence_number
                 }
             }
-            response = self.__send_json_request(payload)
+            response = self.__send_json_request(ws, payload)
+            self.__send_log_to_console('Resume', response)
 
         if not reconnect or response['op'] == 9:
             payload = {
@@ -49,15 +52,16 @@ class Discord:
                     }
                 }
             }
-            response = self.__send_json_request(payload)
+            response = self.__send_json_request(ws, payload)
+            self.__send_log_to_console('Identify', response)
+
             self.__resume_gateway_url = response['d']['resume_gateway_url']
             self.__session_id = response['d']['session_id']
-
-        threading.Thread(target=self.__events_apply).start()
+        threading.Thread(target=self.__events_apply, args=(ws,)).start()
 
     def __websocket_reconnect(self):
         self.__websocket_init(reconnect=True)
-        self.__send_log_to_console('WebSocket Reconnected.')
+        self.__send_log_to_console('Connection', 'WebSocket Reconnected.')
 
     def __requests_session_init(self):
         self.__session = requests.Session()
@@ -65,52 +69,53 @@ class Discord:
             'authorization': self.__token
         })
 
-    def __start_heartbeat(self, heartbeat_interval):
+    def __start_heartbeat(self, ws, heartbeat_interval):
         try:
             while True:
-                self.__send_heartbeat()
                 time.sleep(heartbeat_interval)
+                self.__send_heartbeat(ws)
         except:
             return
 
-    def __send_heartbeat(self):
+    def __send_heartbeat(self, ws):
         payload = {
             'op': 1,
             'd': self.__sequence_number
         }
-        self.__send_json_request(payload)
+        self.__send_json_request(ws, payload)
 
-    def __get_response(self):
-        response = self.__ws.recv()
+    def __get_response(self, ws):
+        response = ws.recv()
         if response:
             response = json.loads(response)
 
             if response['s']:
                 self.__sequence_number = response['s']
             if response['op'] == 1:
-                self.__send_heartbeat()
-
-            self.__send_log_to_console(response)
-
+                self.__send_heartbeat(ws)
             return response
 
-    def __send_json_request(self, payload):
-        self.__ws.send(json.dumps(payload))
-        return self.__get_response()
+    def __send_json_request(self, ws, payload):
+        ws.send(json.dumps(payload))
+        return self.__get_response(ws)
 
-    def __send_log_to_console(self, message):
-        print(f'{time.strftime("%H:%M:%S")}:', message)
+    def __send_log_to_console(self, author, message):
+        print(f'\033[95m{time.strftime("%H:%M:%S")} FROM {author}: \033[93m{message}\033[0m')
 
-    def __events_apply(self):
+    def __events_apply(self, ws):
         while True:
             try:
-                response = self.__get_response()
+                response = self.__get_response(ws)
             except:
-                print('WebSocket Disconnected...')
+                print('Connection', 'WebSocket Disconnected...')
                 self.__websocket_reconnect()
                 return
-            if response:
 
+            if response:
+                if response['op'] == 11:
+                    self.__send_log_to_console('Heartbeat ACK', response)
+                    continue
+                self.__send_log_to_console('Events', response)
                 if response['t'] == 'MESSAGE_CREATE':
                     if 'on_message' in self.__event_functions:
                         self.__event_functions['on_message'](response['d'])
