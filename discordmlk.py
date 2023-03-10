@@ -1,76 +1,128 @@
-import threading
 import websocket
+import threading
 import requests
 import json
 import time
 
 class Discord:
+    __gateway_url = 'wss://gateway.discord.gg/?v=10&encoding=json'
+    __event_functions = {}
+
+
     def __init__(self, token):
-        self.__recieve_message_function = None
-        self.__requests_session_init(token)
-        self.__web_socket_init(token)
+        self.__token = token
+        self.__session_id = None
+        self.__sequence_number = 'null'
+        self.__resume_gateway_url = None
 
-    def __init_event(self, function, recieve_message_function):
-        return threading.Thread(target=function, args=(recieve_message_function,)).start()
+        self.__websocket_init()
+        self.__requests_session_init()
 
-    def __requests_session_init(self, token):
-        self.__session = requests.Session()
-        self.__session.headers.update({
-            'authorization': token
-        })
-
-    def __web_socket_init(self, token):
+    def __websocket_init(self, reconnect=False):
         self.__ws = websocket.WebSocket()
-        self.__ws.connect('wss://gateway.discord.gg/?v=6&encoding=json')
+        self.__ws.connect(self.__gateway_url if not reconnect else self.__resume_gateway_url)
+        response = self.__get_response()
 
-        event = self.__recieve_json_response()
+        heartbeat_interval = response['d']['heartbeat_interval'] / 1000
+        threading.Thread(target=self.__start_heartbeat, args=(heartbeat_interval,)).start()
 
-        heartbeat_inteval = event['d']['heartbeat_interval'] / 1000
-        threading.Thread(target=self.__heartbeat, args=(heartbeat_inteval,)).start()
-        payload = {
-            'op': 2,
-            'd': {
-                'token': token,
-                'properties': {
-                    '$os': 'linux',
-                    '$browser': 'chrome',
-                    '$device': 'pc'
+        if reconnect:
+            payload = {
+                "op": 6,
+                "d": {
+                    "token": self.__token,
+                    "session_id": self.__session_id,
+                    "seq": self.__sequence_number
                 }
             }
+            response = self.__send_json_request(payload)
+
+        if not reconnect or response['op'] == 9:
+            payload = {
+                "op": 2,
+                "d": {
+                    "token": self.__token,
+                    "properties": {
+                        "os": "linux",
+                        "browser": "chrome",
+                        "device": "pc"
+                    }
+                }
+            }
+            response = self.__send_json_request(payload)
+            self.__resume_gateway_url = response['d']['resume_gateway_url']
+            self.__session_id = response['d']['session_id']
+
+        threading.Thread(target=self.__events_apply).start()
+
+    def __websocket_reconnect(self):
+        self.__websocket_init(reconnect=True)
+        self.__send_log_to_console('WebSocket Reconnected.')
+
+    def __requests_session_init(self):
+        self.__session = requests.Session()
+        self.__session.headers.update({
+            'authorization': self.__token
+        })
+
+    def __start_heartbeat(self, heartbeat_interval):
+        try:
+            while True:
+                self.__send_heartbeat()
+                time.sleep(heartbeat_interval)
+        except:
+            return
+
+    def __send_heartbeat(self):
+        payload = {
+            'op': 1,
+            'd': self.__sequence_number
         }
         self.__send_json_request(payload)
 
-    def __heartbeat(self, interval):
-        print('----Heartbeat begin----')
-        while True:
-            time.sleep(interval)
-            payload = {
-                'op': 1,
-                'd': 'null'
-            }
-            self.__send_json_request(payload)
-            print('----Heartbeat send----')
+    def __get_response(self):
+        response = self.__ws.recv()
+        if response:
+            response = json.loads(response)
+
+            if response['s']:
+                self.__sequence_number = response['s']
+            if response['op'] == 1:
+                self.__send_heartbeat()
+
+            self.__send_log_to_console(response)
+
+            return response
 
     def __send_json_request(self, payload):
         self.__ws.send(json.dumps(payload))
+        return self.__get_response()
 
-    def __recieve_json_response(self):
-        response = self.__ws.recv()
-        if response:
-            return json.loads(response)
+    def __send_log_to_console(self, message):
+        print(f'{time.strftime("%H:%M:%S")}:', message)
 
-    def __message_processing(self, function):
+    def __events_apply(self):
         while True:
             try:
-                response = json.loads(self.__ws.recv())
-                function(response)
+                response = self.__get_response()
             except:
-                pass
+                print('WebSocket Disconnected...')
+                self.__websocket_reconnect()
+                return
+            if response:
 
-    def set_recieve_message_function(self, recieve_message_function):
-        self.__init_event(self.__message_processing, recieve_message_function)
+                if response['t'] == 'MESSAGE_CREATE':
+                    if 'on_message' in self.__event_functions:
+                        self.__event_functions['on_message'](response['d'])
 
-    def send_slash_command(self, application_id, guild_id, channel_id, session_id, command_name, user_id):
+    def event(self, function):
+        self.__event_functions[function.__name__] = function
+
+    def send_message(self, channel_id, message):
+        url = f'https://discord.com/api/v9/channels/{channel_id}/messages'
+        return self.__session.post(url, json={'content': message})
+
+    def send_slash_command(self, application_id, guild_id, channel_id, command_name, user_id):
         command = self.get_application_command(application_id, channel_id, command_name)
         command_version = command['version']
         command_id = command['id']
@@ -78,7 +130,7 @@ class Discord:
             'application_id': application_id,
             'guild_id': guild_id,
             'channel_id': channel_id,
-            'session_id': session_id,
+            'session_id': self.__session_id,
             'data': {
                 'version': command_version,
                 'id': command_id,
@@ -91,10 +143,6 @@ class Discord:
             }, 'type': 2
         }
         return self.__session.post('https://discord.com/api/v9/interactions', json=data)
-
-    def send_message(self, channel_id, message):
-        url = f'https://discord.com/api/v9/channels/{channel_id}/messages'
-        return self.__session.post(url, json={'content': message})
 
     def get_application_command(self, application_id, channel_id, command_name):
         url = f'https://discord.com/api/v9/channels/{channel_id}/application-commands/search?type=1&application_id={application_id}'
