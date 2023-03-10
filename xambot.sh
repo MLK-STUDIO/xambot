@@ -1,1 +1,0 @@
-screen -dmS xambot python3 xambot.py
