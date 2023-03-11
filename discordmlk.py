@@ -123,9 +123,19 @@ class Discord:
     def event(self, function):
         self.__event_functions[function.__name__] = function
 
-    def send_message(self, channel_id, message):
+    def send_message(self, guild_id, channel_id, message, reply_to=None):
         url = f'https://discord.com/api/v9/channels/{channel_id}/messages'
-        return self.__session.post(url, json={'content': message})
+        print(reply_to)
+        payload = {
+            'content': message,
+        }
+        if guild_id is not None:
+            payload['message_reference'] = {}
+            payload['message_reference']['guild_id'] = guild_id
+            payload['message_reference']['channel_id,'] = channel_id
+        if reply_to is not None:
+            payload['message_reference']['message_id'] = reply_to
+        return self.__session.post(url, json=payload)
 
     def send_slash_command(self, application_id, guild_id, channel_id, command_name, user_id):
         command = self.get_application_command(application_id, channel_id, command_name)
