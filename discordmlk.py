@@ -8,8 +8,12 @@ class Discord:
     __gateway_url = 'wss://gateway.discord.gg/?v=10&encoding=json'
     __event_functions = {}
 
-
-    def __init__(self, token):
+    def __init__(self, token=None, login=None, password=None):
+        if login is not None and password is not None:
+            token = self.__login(login, password)
+        if token is None:
+            print("I don't have token.")
+            return
         self.__token = token
         self.__session_id = None
         self.__sequence_number = 'null'
@@ -17,6 +21,14 @@ class Discord:
 
         self.__websocket_init()
         self.__requests_session_init()
+
+    def __login(self, login, password):
+        payload = {
+            'login': login,
+            'password': password,
+        }
+        response = json.loads(requests.post('https://discord.com/api/v9/auth/login', json=payload).text)
+        return response['token']
 
     def __websocket_init(self, reconnect=False):
         ws = websocket.WebSocket()

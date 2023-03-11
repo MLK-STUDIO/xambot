@@ -1,7 +1,7 @@
 import discordmlk as discordmlk
 
-token = open('token', 'r').read()
-discord = discordmlk.Discord(token)
+data = open('token', 'r').read().split(';')
+discord = discordmlk.Discord(login=data[0], password=data[1])
 
 def main():
     print('Все системы запущены, жук готов к бою!')
