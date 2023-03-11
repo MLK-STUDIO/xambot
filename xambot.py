@@ -9,37 +9,48 @@ def main():
 @discord.event
 def on_message(response):
     print(f'{response["author"]["username"]}: {response["content"]}')
+    content = response['content'].lower()
     univ_content = response['content'].lower().replace(' ', '')
+    guild_id = None
+    if 'guild_id' in response:
+        guild_id = response['guild_id']
+    channel_id = response['channel_id']
+    author_id = response['id']
 
-    apply_command = lambda x: discord.send_slash_command('1033663376938770482', '1023529522760532020', '1023540638186217473', x, '792042309503418400')
-    if univ_content == 'жукпогладьхама':
-        apply_command('pat')
-    elif univ_content == 'жуккусихама':
-        apply_command('bite')
-    elif univ_content == 'жукобнимихама':
-        apply_command('hug')
-    elif univ_content == 'жукоближихама':
-        apply_command('lick')
-    elif univ_content == 'жукпоцелуйхама':
-        apply_command('kiss')
-    elif univ_content == 'жуклюбихама':
-        discord.send_message('1023540638186217473', '<@792042309503418400> я тебя :heart:')
+    if '<@912000324808617984>' in content or 'жук' in content:
+        if 'спать' in content:
+            discord.send_message(guild_id, channel_id, 'Не пойду!!!!', author_id)
 
-    author_id = response['author']['id']
-    apply_command = lambda x: discord.send_slash_command('1033663376938770482', '1023529522760532020', '1023540638186217473', x, f'{author_id}')
-    if univ_content == 'жукпогладьменя':
-        apply_command('pat')
-    elif univ_content == 'жуккусименя':
-        apply_command('bite')
-    elif univ_content == 'жукобнимименя':
-        apply_command('hug')
-    elif univ_content == 'жукоближименя':
-        apply_command('lick')
-    elif univ_content == 'жукпоцелуйменя':
-        apply_command('kiss')
-    elif univ_content == 'жуклюбименя':
-        discord.send_message('1023540638186217473', f'<@{author_id}> я тебя :heart:')
+        if 'хама' in univ_content:
+            apply_command = lambda x: discord.send_slash_command('1033663376938770482', '1023529522760532020', '1023540638186217473', x, '792042309503418400')
+            if 'погладь' in univ_content:
+                apply_command('pat')
+            elif 'куси' in univ_content:
+                apply_command('bite')
+            elif 'обними' in univ_content:
+                apply_command('hug')
+            elif 'оближи' in univ_content:
+                apply_command('lick')
+            elif 'поцелуй' in univ_content:
+                apply_command('kiss')
+            elif 'люби' in univ_content:
+                discord.send_message(guild_id, '1023540638186217473', '<@792042309503418400> я тебя :heart:')
 
+        if 'меня' in univ_content:
+            author_id = response['author']['id']
+            apply_command = lambda x: discord.send_slash_command('1033663376938770482', '1023529522760532020', '1023540638186217473', x, f'{author_id}')
+            if 'погладь' in univ_content:
+                apply_command('pat')
+            elif 'куси' in univ_content:
+                apply_command('bite')
+            elif 'обними' in univ_content:
+                apply_command('hug')
+            elif 'оближи' in univ_content:
+                apply_command('lick')
+            elif 'поцелуй' in univ_content:
+                apply_command('kiss')
+            elif 'люби' in univ_content:
+                discord.send_message(guild_id, '1023540638186217473', f'<@{author_id}> я тебя :heart:')
 
 if __name__ == '__main__':
     main()
