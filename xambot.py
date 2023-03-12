@@ -1,50 +1,78 @@
-import discordmlk as discordmlk
+import discordmlk
+import discordmlk.covers as covers
 
 data = open('token', 'r').read().split(';')
-discord = discordmlk.Discord(login=data[0], password=data[1])
+discord = discordmlk.Discord(login=data[0], password=data[1], token=data[2])
 
 def main():
     print('Все системы запущены, жук готов к бою!')
 
+rob = False
+
 @discord.event
-def on_message(response):
-    print(f'{response["author"]["username"]}: {response["content"]}')
-    content = response['content'].lower()
-    univ_content = response['content'].lower().replace(' ', '')
+def on_message(message):
+    print(f'{message.author.name}: {message.content}')
+    content = message.content.lower()
 
-    guild_id = None
-    if 'guild_id' in response:
-        guild_id = response['guild_id']
-    channel_id = response['channel_id']
-    author_id = response['id']
-    apply_command = None
+    if not '<@912000324808617984>' in content and not 'жук' in content:
+        return
 
-    if '<@912000324808617984>' in content or 'жук' in content:
-        if 'спать' in content:
-            discord.send_message(guild_id, channel_id, 'Не пойду!!!!', author_id)
+    application_id = '1033663376938770482'
+    guild_id = '1023529522760532020'
+    channel_id = message.channel_id if message.member is not None else '1023540638186217473'
 
-        if 'хама' in univ_content:
-            apply_command = lambda x: discord.send_slash_command('1033663376938770482', '1023529522760532020', '1023540638186217473', x, '792042309503418400')
-            if 'люби' in univ_content:
-                discord.send_message(guild_id, '1023540638186217473', '<@792042309503418400> я тебя :heart:')
+    if 'спать' in content or 'спи' in content:
+        no_message = covers.Message(channel_id)
+        no_message.set_message(message.channel_id, f'Не пойду!!!!')
+        no_message.reply_to(message.guild_id, message.channel_id, message.id)
+        discord.send_message(no_message)
 
-        if 'меня' in univ_content:
-            author_id = response['author']['id']
-            apply_command = lambda x: discord.send_slash_command('1033663376938770482', '1023529522760532020', '1023540638186217473', x, f'{author_id}')
-            if 'люби' in univ_content:
-                discord.send_message(guild_id, '1023540638186217473', f'<@{author_id}> я тебя :heart:')
+    if 'хама' in content:
+        slash_command = covers.SlashCommand(application_id, guild_id, channel_id, '')
+        slash_command.add_option(6, 'user', '792042309503418400')
+        if 'люби' in content:
+            love_message = covers.Message(channel_id)
+            love_message.set_message(channel_id, f'<@792042309503418400> я тебя :heart:')
+            if message.member is not None:
+                love_message.reply_to(guild_id, channel_id, message.id)
+            discord.send_message(love_message)
 
-        if apply_command is not None:
-            if 'погладь' in univ_content:
-                apply_command('pat')
-            if 'куси' in univ_content:
-                apply_command('bite')
-            if 'обними' in univ_content:
-                apply_command('hug')
-            if 'оближи' in univ_content:
-                apply_command('lick')
-            if 'поцелуй' in univ_content:
-                apply_command('kiss')
+    if 'деда' in content:
+        slash_command = covers.SlashCommand(application_id, guild_id, channel_id, '')
+        slash_command.add_option(6, 'user', '431103899425046539')
+        if 'люби' in content:
+            love_message = covers.Message(channel_id)
+            love_message.set_message(channel_id, f'<@431103899425046539> я тебя :heart:')
+            if message.member is not None:
+                love_message.reply_to(guild_id, channel_id, message.id)
+            discord.send_message(love_message)
+
+    if 'меня' in content:
+        slash_command = covers.SlashCommand(application_id, guild_id, channel_id, '')
+        slash_command.add_option(6, 'user', message.author.id)
+        if 'люби' in content:
+            love_message = covers.Message(channel_id)
+            love_message.set_message(channel_id, f'<@{message.author.id}> я тебя :heart:')
+            if message.member is not None:
+                love_message.reply_to(guild_id, channel_id, message.id)
+            discord.send_message(love_message)
+
+        if slash_command is not None and not 'люби' in content:
+            if 'погладь' in content:
+                slash_command.set_command_name('pat')
+                discord.send_slash_command(slash_command)
+            if 'куси' in content:
+                slash_command.set_command_name('bite')
+                discord.send_slash_command(slash_command)
+            if 'обними' in content:
+                slash_command.set_command_name('hug')
+                discord.send_slash_command(slash_command)
+            if 'оближи' in content:
+                slash_command.set_command_name('lick')
+                discord.send_slash_command(slash_command)
+            if 'поцелуй' in content:
+                slash_command.set_command_name('kiss')
+                discord.send_slash_command(slash_command)
 
 if __name__ == '__main__':
     main()

@@ -4,12 +4,16 @@ import requests
 import json
 import time
 
+from discordmlk import covers
+
+
 class Discord:
     __gateway_url = 'wss://gateway.discord.gg/?v=10&encoding=json'
     __event_functions = {}
+    id = ''
 
     def __init__(self, token=None, login=None, password=None):
-        if login is not None and password is not None:
+        if login is not None and password is not None and token is None:
             token = self.__login(login, password)
         if token is None:
             print("I don't have token.")
@@ -28,6 +32,7 @@ class Discord:
             'password': password,
         }
         response = json.loads(requests.post('https://discord.com/api/v9/auth/login', json=payload).text)
+        print(response)
         return response['token']
 
     def __websocket_init(self, reconnect=False):
@@ -67,6 +72,7 @@ class Discord:
             response = self.__send_json_request(ws, payload)
             self.__send_log_to_console('Identify', response)
 
+            self.id = response['d']['user']['id']
             self.__resume_gateway_url = response['d']['resume_gateway_url']
             self.__session_id = response['d']['session_id']
         threading.Thread(target=self.__events_apply, args=(ws,)).start()
@@ -130,48 +136,35 @@ class Discord:
                 self.__send_log_to_console('Events', response)
                 if response['t'] == 'MESSAGE_CREATE':
                     if 'on_message' in self.__event_functions:
-                        self.__event_functions['on_message'](response['d'])
+                        msg = covers.Message(response['d'])
+                        threading.Thread(target=self.__event_functions['on_message'], args=(msg,)).start()
 
     def event(self, function):
         self.__event_functions[function.__name__] = function
 
-    def send_message(self, guild_id, channel_id, message, reply_to=None):
-        url = f'https://discord.com/api/v9/channels/{channel_id}/messages'
-        payload = {
-            'content': message
-        }
-        if reply_to is not None:
-            payload['message_reference'] = {}
-            payload['message_reference']['message_id'] = reply_to
-            payload['message_reference']['guild_id'] = guild_id
-            payload['message_reference']['channel_id,'] = channel_id
-        return self.__session.post(url, json=payload)
 
-    def send_slash_command(self, application_id, guild_id, channel_id, command_name, user_id):
+
+
+    def send_slash_command(self, slash_command):
+        command_data = slash_command.get_json()
+
+        application_id = command_data['application_id']
+        channel_id = command_data['channel_id']
+        command_name = command_data['data']['name']
         command = self.get_application_command(application_id, channel_id, command_name)
-        command_version = command['version']
-        command_id = command['id']
-        data = {
-            'application_id': application_id,
-            'guild_id': guild_id,
-            'channel_id': channel_id,
-            'session_id': self.__session_id,
-            'data': {
-                'version': command_version,
-                'id': command_id,
-                'name': command_name,
-                'options': [{
-                    'type': 6,
-                    'name': 'user',
-                    'value': user_id
-                }]
-            }, 'type': 2
-        }
-        return self.__session.post('https://discord.com/api/v9/interactions', json=data)
 
+        command_data['session_id'] = self.__session_id
+        command_data['data']['version'] = command['version']
+        command_data['data']['id'] = command['id']
+
+        return self.__session.post('https://discord.com/api/v9/interactions', json=command_data)
     def get_application_command(self, application_id, channel_id, command_name):
         url = f'https://discord.com/api/v9/channels/{channel_id}/application-commands/search?type=1&application_id={application_id}'
         application_commands = json.loads(self.__session.get(url).text)['application_commands']
         for command in application_commands:
             if command['name'] == command_name:
                 return command
+
+    def send_message(self, message):
+        url = f'https://discord.com/api/v9/channels/{message.get_json()["channel_id"]}/messages'
+        return self.__session.post(url, json=message.get_json())
