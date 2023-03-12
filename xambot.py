@@ -13,6 +13,7 @@ rob = False
 def on_message(message):
     print(f'{message.author.name}: {message.content}')
     content = message.content.lower()
+    slash_command = None
 
     if not '<@912000324808617984>' in content and not 'жук' in content:
         return
@@ -28,6 +29,7 @@ def on_message(message):
         discord.send_message(no_message)
 
     if 'хама' in content:
+        print('start')
         slash_command = covers.SlashCommand(application_id, guild_id, channel_id, '')
         slash_command.add_option(6, 'user', '792042309503418400')
         if 'люби' in content:
@@ -37,7 +39,7 @@ def on_message(message):
                 love_message.reply_to(guild_id, channel_id, message.id)
             discord.send_message(love_message)
 
-    if 'деда' in content:
+    elif 'деда' in content:
         slash_command = covers.SlashCommand(application_id, guild_id, channel_id, '')
         slash_command.add_option(6, 'user', '431103899425046539')
         if 'люби' in content:
@@ -47,7 +49,7 @@ def on_message(message):
                 love_message.reply_to(guild_id, channel_id, message.id)
             discord.send_message(love_message)
 
-    if 'меня' in content:
+    elif 'меня' in content:
         slash_command = covers.SlashCommand(application_id, guild_id, channel_id, '')
         slash_command.add_option(6, 'user', message.author.id)
         if 'люби' in content:
@@ -57,22 +59,22 @@ def on_message(message):
                 love_message.reply_to(guild_id, channel_id, message.id)
             discord.send_message(love_message)
 
-        if slash_command is not None and not 'люби' in content:
-            if 'погладь' in content:
-                slash_command.set_command_name('pat')
-                discord.send_slash_command(slash_command)
-            if 'куси' in content:
-                slash_command.set_command_name('bite')
-                discord.send_slash_command(slash_command)
-            if 'обними' in content:
-                slash_command.set_command_name('hug')
-                discord.send_slash_command(slash_command)
-            if 'оближи' in content:
-                slash_command.set_command_name('lick')
-                discord.send_slash_command(slash_command)
-            if 'поцелуй' in content:
-                slash_command.set_command_name('kiss')
-                discord.send_slash_command(slash_command)
+    if slash_command is not None and not 'люби' in content:
+        if 'погладь' in content:
+            slash_command.set_command_name('pat')
+            discord.send_slash_command(slash_command)
+        if 'куси' in content:
+            slash_command.set_command_name('bite')
+            discord.send_slash_command(slash_command)
+        if 'обними' in content:
+            slash_command.set_command_name('hug')
+            discord.send_slash_command(slash_command)
+        if 'оближи' in content:
+            slash_command.set_command_name('lick')
+            discord.send_slash_command(slash_command)
+        if 'поцелуй' in content:
+            slash_command.set_command_name('kiss')
+            discord.send_slash_command(slash_command)
 
 if __name__ == '__main__':
     main()
